@@ -203,6 +203,45 @@ body::before {
   font-size: 0.95rem;
 }
 
+.method-card {
+  margin-top: 18px;
+  padding: 16px;
+  border: 1px solid rgba(77, 54, 33, 0.1);
+  border-radius: var(--radius-lg);
+  background: rgba(249, 242, 232, 0.82);
+}
+
+.method-card__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.method-card h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.method-card a {
+  color: var(--primary-strong);
+  font-size: 0.9rem;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.method-card a:hover {
+  text-decoration: underline;
+}
+
+.method-card p {
+  margin: 8px 0 0;
+  color: var(--text-soft);
+  font-size: 0.92rem;
+  line-height: 1.55;
+}
+
 .actions {
   display: flex;
   flex-wrap: wrap;
@@ -443,6 +482,11 @@ body::before {
   }
 
   .panel__head {
+    flex-direction: column;
+  }
+
+  .method-card__head {
+    align-items: start;
     flex-direction: column;
   }
 

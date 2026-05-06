@@ -5,6 +5,9 @@ const STORAGE_KEYS = {
 };
 
 const encoder = new TextEncoder();
+const MESH_METHOD_LABEL = "Mesh-compressor";
+const LZW_METHOD_LABEL = "LZW-сжатие";
+const LZW_ENCODER_METHOD_LABEL = "LZW-сжатие (вариант 2)";
 const DEFAULT_DICTIONARIES = [
   {
     name: "Cyr2Lat standard",
@@ -145,8 +148,14 @@ const state = {
   settings: loadJson(STORAGE_KEYS.settings, {
     sortDirection: "desc",
     byteLimit: "",
+    meshEnabled: false,
+    lzwEnabled: false,
+    lzwEncoderEnabled: false,
   }),
 };
+state.settings.meshEnabled = state.settings.meshEnabled ?? false;
+state.settings.lzwEnabled = state.settings.lzwEnabled ?? false;
+state.settings.lzwEncoderEnabled = state.settings.lzwEncoderEnabled ?? false;
 
 const elements = {
   sourceInput: document.getElementById("source-input"),
@@ -157,6 +166,9 @@ const elements = {
   byteCounter: document.getElementById("byte-counter"),
   limitStatus: document.getElementById("limit-status"),
   byteLimitInput: document.getElementById("byte-limit-input"),
+  meshToggleButton: document.getElementById("mesh-toggle-button"),
+  lzwToggleButton: document.getElementById("lzw-toggle-button"),
+  lzwEncoderToggleButton: document.getElementById("lzw-encoder-toggle-button"),
   sortIndicator: document.getElementById("sort-indicator"),
   exampleCount: document.getElementById("example-count"),
   resultsBody: document.getElementById("results-body"),
@@ -170,11 +182,13 @@ const elements = {
 };
 
 let lastValidInput = "";
+let meshModel = null;
 
 init();
 
 function init() {
   seedDefaultDictionaries();
+  initMeshCompressor();
   elements.byteLimitInput.value = state.settings.byteLimit;
   updateInputStats();
   bindEvents();
@@ -188,6 +202,9 @@ function bindEvents() {
   elements.clearExamplesButton.addEventListener("click", clearExamples);
   elements.toggleSortButton.addEventListener("click", toggleSortDirection);
   elements.byteLimitInput.addEventListener("input", handleByteLimitChange);
+  elements.meshToggleButton.addEventListener("click", toggleMeshMethod);
+  elements.lzwToggleButton.addEventListener("click", toggleLzwMethod);
+  elements.lzwEncoderToggleButton.addEventListener("click", toggleLzwEncoderMethod);
   elements.addDictionaryButton.addEventListener("click", addDictionary);
   elements.resetDictionariesButton.addEventListener("click", resetDictionaries);
 }
@@ -366,6 +383,27 @@ function resetDictionaries() {
   renderAll();
 }
 
+function toggleMeshMethod() {
+  state.settings.meshEnabled = !state.settings.meshEnabled;
+  persistSettings();
+  renderMeshMethod();
+  renderResults();
+}
+
+function toggleLzwMethod() {
+  state.settings.lzwEnabled = !state.settings.lzwEnabled;
+  persistSettings();
+  renderLzwMethod();
+  renderResults();
+}
+
+function toggleLzwEncoderMethod() {
+  state.settings.lzwEncoderEnabled = !state.settings.lzwEncoderEnabled;
+  persistSettings();
+  renderLzwEncoderMethod();
+  renderResults();
+}
+
 function toggleSortDirection() {
   state.settings.sortDirection = state.settings.sortDirection === "desc" ? "asc" : "desc";
   persistSettings();
@@ -375,6 +413,9 @@ function toggleSortDirection() {
 
 function renderAll() {
   renderSortState();
+  renderMeshMethod();
+  renderLzwMethod();
+  renderLzwEncoderMethod();
   renderDictionaries();
   renderResults();
 }
@@ -383,6 +424,27 @@ function renderSortState() {
   const isDescending = state.settings.sortDirection === "desc";
   elements.sortIndicator.textContent = isDescending ? "Новые сверху" : "Новые снизу";
   elements.toggleSortButton.textContent = isDescending ? "Показать старые сверху" : "Показать новые сверху";
+}
+
+function renderMeshMethod() {
+  const isEnabled = state.settings.meshEnabled;
+  elements.meshToggleButton.textContent = isEnabled ? "Включен" : "Выключен";
+  elements.meshToggleButton.classList.toggle("button--primary", isEnabled);
+  elements.meshToggleButton.classList.toggle("button--ghost", !isEnabled);
+}
+
+function renderLzwMethod() {
+  const isEnabled = state.settings.lzwEnabled;
+  elements.lzwToggleButton.textContent = isEnabled ? "Включен" : "Выключен";
+  elements.lzwToggleButton.classList.toggle("button--primary", isEnabled);
+  elements.lzwToggleButton.classList.toggle("button--ghost", !isEnabled);
+}
+
+function renderLzwEncoderMethod() {
+  const isEnabled = state.settings.lzwEncoderEnabled;
+  elements.lzwEncoderToggleButton.textContent = isEnabled ? "Включен" : "Выключен";
+  elements.lzwEncoderToggleButton.classList.toggle("button--primary", isEnabled);
+  elements.lzwEncoderToggleButton.classList.toggle("button--ghost", !isEnabled);
 }
 
 function renderDictionaries() {
@@ -468,6 +530,18 @@ function renderResults() {
         })
       ),
     ];
+    const meshRows = buildMeshResultRows(example.text, originalBytes, index + 1);
+    if (meshRows.length) {
+      sectionRows.push(...meshRows);
+    }
+    const lzwRow = buildLzwResultRow(example.text, originalBytes, index + 1);
+    if (lzwRow) {
+      sectionRows.push(lzwRow);
+    }
+    const lzwEncoderRow = buildLzwEncoderResultRow(example.text, originalBytes, index + 1);
+    if (lzwEncoderRow) {
+      sectionRows.push(lzwEncoderRow);
+    }
 
     sectionRows.forEach((row, rowIndex) => {
       rows.push(`
@@ -503,6 +577,149 @@ function buildResultRow({ orderNumber, label, text, originalBytes, isOriginal })
   };
 }
 
+function buildMeshResultRows(sourceText, originalBytes, orderNumber) {
+  if (!state.settings.meshEnabled) {
+    return [];
+  }
+
+  if (!meshModel || typeof compress === "undefined") {
+    return [buildCompressedResultRow({
+      orderNumber,
+      label: MESH_METHOD_LABEL,
+      text: "Модель mesh-compressor не загружена",
+      byteSize: 0,
+      originalBytes,
+    })];
+  }
+
+  try {
+    const compressed = compress(sourceText, meshModel);
+    meshModel.clearCache();
+    const base91Text = typeof compressText === "undefined" ? "" : compressText(sourceText, meshModel);
+    meshModel.clearCache();
+
+    const rows = [
+      buildCompressedResultRow({
+        orderNumber,
+        label: `${MESH_METHOD_LABEL} binary`,
+        text: bytesToHex(compressed),
+        byteSize: compressed.length,
+        originalBytes,
+      }),
+    ];
+
+    if (base91Text) {
+      rows.push(
+        buildCompressedResultRow({
+          orderNumber,
+          label: `${MESH_METHOD_LABEL} base91`,
+          text: base91Text,
+          byteSize: getUtf8ByteLength(base91Text),
+          originalBytes,
+        })
+      );
+    }
+
+    return rows;
+  } catch (error) {
+    return [buildCompressedResultRow({
+      orderNumber,
+      label: MESH_METHOD_LABEL,
+      text: `Ошибка сжатия: ${error.message}`,
+      byteSize: 0,
+      originalBytes,
+    })];
+  }
+}
+
+function buildCompressedResultRow({ orderNumber, label, text, byteSize, originalBytes }) {
+  const diff = byteSize - originalBytes;
+  const percent = originalBytes === 0 ? 0 : Math.round((diff / originalBytes) * 100);
+
+  return {
+    orderNumber,
+    label,
+    text,
+    byteSize,
+    isOriginal: false,
+    diffLabel: formatSignedNumber(diff),
+    percentLabel: `${formatSignedNumber(percent)}%`,
+    metricClass: diff < 0 ? "metric-good" : diff > 0 ? "metric-bad" : "metric-neutral",
+  };
+}
+
+function buildLzwResultRow(sourceText, originalBytes, orderNumber) {
+  if (!state.settings.lzwEnabled) {
+    return null;
+  }
+
+  if (!window.lzwCompressionHelper) {
+    return buildCompressedResultRow({
+      orderNumber,
+      label: LZW_METHOD_LABEL,
+      text: "Хелпер lzwCompress.js не загружен",
+      byteSize: 0,
+      originalBytes,
+    });
+  }
+
+  try {
+    const compressed = window.lzwCompressionHelper.compressText(sourceText);
+
+    return buildCompressedResultRow({
+      orderNumber,
+      label: LZW_METHOD_LABEL,
+      text: compressed.display,
+      byteSize: compressed.byteSize,
+      originalBytes,
+    });
+  } catch (error) {
+    return buildCompressedResultRow({
+      orderNumber,
+      label: LZW_METHOD_LABEL,
+      text: `Ошибка сжатия: ${error.message}`,
+      byteSize: 0,
+      originalBytes,
+    });
+  }
+}
+
+function buildLzwEncoderResultRow(sourceText, originalBytes, orderNumber) {
+  if (!state.settings.lzwEncoderEnabled) {
+    return null;
+  }
+
+  if (!window.lzwEncoderHelper) {
+    return buildCompressedResultRow({
+      orderNumber,
+      label: LZW_ENCODER_METHOD_LABEL,
+      text: "Хелпер lzw-encoder.js не загружен",
+      byteSize: 0,
+      originalBytes,
+    });
+  }
+
+  try {
+    const compressed = window.lzwEncoderHelper.compressText(sourceText);
+
+    return buildCompressedResultRow({
+      orderNumber,
+      label: LZW_ENCODER_METHOD_LABEL,
+      text: compressed.display,
+      byteSize: compressed.byteSize,
+      originalBytes,
+    });
+  } catch (error) {
+    return buildCompressedResultRow({
+      orderNumber,
+      label: LZW_ENCODER_METHOD_LABEL,
+      text: `Ошибка сжатия: ${error.message}`,
+      byteSize: 0,
+      originalBytes,
+    });
+  }
+}
+
 function getDisplayedExamples() {
   const copy = [...state.examples];
   return state.settings.sortDirection === "desc" ? copy.reverse() : copy;
@@ -520,6 +737,18 @@ function applyDictionary(sourceText, mapping) {
   });
 
   return result;
+}
+
+function initMeshCompressor() {
+  if (typeof NGramModel === "undefined" || !window.MESH_COMPRESSOR_MODEL_DATA) {
+    return;
+  }
+
+  try {
+    meshModel = NGramModel.fromJSON(window.MESH_COMPRESSOR_MODEL_DATA);
+  } catch (error) {
+    meshModel = null;
+  }
 }
 
 function updateInputStats() {
@@ -540,6 +769,10 @@ function getByteLimit() {
 
 function getUtf8ByteLength(text) {
   return encoder.encode(text).length;
+}
+
+function bytesToHex(bytes) {
+  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
 function insertAtCursor(textarea, text) {
