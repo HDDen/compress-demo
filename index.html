@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Text Compression Demo</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="page-shell">
+    <header class="hero">
+      <div class="hero__badge">UTF-8 Compression Playground</div>
+      <h1>Демо-страница для тестирования сжатия текста по JSON-словарям</h1>
+      <p>
+        Введите исходный текст, нажмите <strong>Enter</strong> для добавления в историю или
+        <strong>Ctrl+Enter</strong> для переноса строки внутри поля.
+      </p>
+    </header>
+
+    <main class="layout">
+      <section class="panel panel--composer">
+        <div class="panel__head">
+          <h2>Новый пример</h2>
+          <span class="pill" id="sort-indicator">Новые сверху</span>
+        </div>
+
+        <label class="field">
+          <span class="field__label">Исходный текст</span>
+          <textarea
+            id="source-input"
+            class="field__control field__control--textarea"
+            rows="7"
+            placeholder="Введите пример текста. Enter — добавить пример, Ctrl+Enter — перенос строки."
+          ></textarea>
+        </label>
+
+        <div class="composer-meta">
+          <div class="stats-row">
+            <span>Символов: <strong id="char-counter">0</strong></span>
+            <span>Байт UTF-8: <strong id="byte-counter">0</strong></span>
+            <span id="limit-status">Лимит: не задан</span>
+          </div>
+
+          <label class="field field--inline">
+            <span class="field__label">Лимит байт</span>
+            <input id="byte-limit-input" class="field__control" type="number" min="1" step="1" placeholder="Не ограничивать">
+          </label>
+        </div>
+
+        <div class="actions">
+          <button id="add-example-button" class="button button--primary" type="button">Добавить пример</button>
+          <button id="toggle-sort-button" class="button button--ghost" type="button">Переключить порядок</button>
+          <button id="clear-examples-button" class="button button--danger" type="button">Очистить примеры</button>
+        </div>
+      </section>
+
+      <section class="panel panel--dictionary">
+        <div class="panel__head">
+          <h2>JSON-словари</h2>
+          <span class="pill" id="dictionary-count">0 словарей</span>
+        </div>
+
+        <div class="dictionary-form">
+          <label class="field">
+            <span class="field__label">Название словаря</span>
+            <input id="dictionary-name-input" class="field__control" type="text" placeholder="Например: Короткие коды">
+          </label>
+
+          <label class="field">
+            <span class="field__label">JSON-словарь замен</span>
+            <textarea
+              id="dictionary-json-input"
+              class="field__control field__control--textarea field__control--code"
+              rows="7"
+              placeholder='{"привет": "prv", " ": "_"}'
+            ></textarea>
+          </label>
+
+          <div class="actions">
+            <button id="add-dictionary-button" class="button button--primary" type="button">Добавить словарь</button>
+            <button id="reset-dictionaries-button" class="button button--ghost" type="button">Сбросить к базовым</button>
+          </div>
+        </div>
+
+        <div id="dictionary-list" class="dictionary-list empty-state">
+          Пока нет словарей. Добавьте первый JSON справа.
+        </div>
+      </section>
+    </main>
+
+    <section class="panel panel--table">
+      <div class="panel__head">
+        <h2>История примеров</h2>
+        <span class="pill" id="example-count">0 примеров</span>
+      </div>
+
+      <div class="table-wrap">
+        <table class="results-table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Словарь</th>
+              <th>Текст</th>
+              <th>Байт UTF-8</th>
+              <th>Разница</th>
+              <th>Разница %</th>
+            </tr>
+          </thead>
+          <tbody id="results-body">
+            <tr class="empty-row">
+              <td colspan="6">Примеры пока не добавлены.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+
+  <template id="dictionary-item-template">
+    <article class="dictionary-card">
+      <div class="dictionary-card__head">
+        <div>
+          <h3 class="dictionary-card__title"></h3>
+          <p class="dictionary-card__meta"></p>
+        </div>
+        <div class="dictionary-card__controls">
+          <label class="toggle">
+            <input class="dictionary-toggle" type="checkbox">
+            <span>Активен</span>
+          </label>
+          <button class="button button--ghost button--small dictionary-expand-button" type="button">Показать JSON</button>
+        </div>
+      </div>
+      <pre class="dictionary-card__preview dictionary-card__preview--collapsed" hidden></pre>
+      <button class="button button--danger button--small dictionary-delete-button" type="button">Удалить</button>
+    </article>
+  </template>
+
+  <script src="app.js"></script>
+</body>
+</html>
