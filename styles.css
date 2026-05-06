@@ -376,6 +376,7 @@ body::before {
 
 .results-table {
   width: 100%;
+  table-layout: fixed;
   border-collapse: separate;
   border-spacing: 0;
 }
@@ -420,7 +421,14 @@ body::before {
 
 .results-table td:nth-child(3) {
   white-space: pre-wrap;
+  overflow-wrap: anywhere;
   word-break: break-word;
+}
+
+.results-table td:not(.section-index):first-child ~ td:nth-child(2), 
+.results-table td.section-index ~ td:nth-child(3), 
+.results-table th:nth-child(3){
+	word-break: break-word;
 }
 
 .section-start td {
@@ -431,6 +439,38 @@ body::before {
   font-weight: 800;
   font-size: 1.05rem;
   color: var(--primary-strong);
+}
+
+.section-index__content {
+  display: inline-flex;
+  align-items: center;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.icon-button {
+  display: inline-grid;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  border: 1px solid rgba(183, 72, 47, 0.2);
+  border-radius: 50%;
+  background: rgba(183, 72, 47, 0.1);
+  color: var(--bad);
+  cursor: pointer;
+  transition: background 0.18s ease, transform 0.18s ease, border-color 0.18s ease;
+}
+
+.icon-button:hover {
+  background: rgba(183, 72, 47, 0.16);
+  border-color: rgba(183, 72, 47, 0.36);
+  transform: translateY(-1px);
+}
+
+.icon-button svg {
+  width: 17px;
+  height: 17px;
+  fill: currentColor;
 }
 
 .label-original {

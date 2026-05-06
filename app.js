@@ -200,6 +200,7 @@ function bindEvents() {
   elements.sourceInput.addEventListener("input", handleSourceInput);
   elements.addExampleButton.addEventListener("click", addExample);
   elements.clearExamplesButton.addEventListener("click", clearExamples);
+  elements.resultsBody.addEventListener("click", handleResultsClick);
   elements.toggleSortButton.addEventListener("click", toggleSortDirection);
   elements.byteLimitInput.addEventListener("input", handleByteLimitChange);
   elements.meshToggleButton.addEventListener("click", toggleMeshMethod);
@@ -288,6 +289,21 @@ function clearExamples() {
   }
 
   state.examples = [];
+  persistExamples();
+  renderResults();
+}
+
+function handleResultsClick(event) {
+  const deleteButton = event.target.closest("[data-delete-example-id]");
+  if (!deleteButton) {
+    return;
+  }
+
+  deleteExample(deleteButton.dataset.deleteExampleId);
+}
+
+function deleteExample(exampleId) {
+  state.examples = state.examples.filter((example) => example.id !== exampleId);
   persistExamples();
   renderResults();
 }
@@ -546,7 +562,16 @@ function renderResults() {
     sectionRows.forEach((row, rowIndex) => {
       rows.push(`
         <tr class="${rowIndex === 0 ? "section-start" : ""}">
-          ${rowIndex === 0 ? `<td class="section-index" rowspan="${sectionRows.length}">${row.orderNumber}</td>` : ""}
+          ${rowIndex === 0 ? `<td class="section-index" rowspan="${sectionRows.length}">
+            <div class="section-index__content">
+              <span>${row.orderNumber}</span>
+              <button class="icon-button" type="button" title="Удалить" aria-label="Удалить пример" data-delete-example-id="${escapeHtml(example.id)}">
+                <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                  <path d="M9 3h6l1 2h4v2H4V5h4l1-2Zm-2 6h10l-.7 11H7.7L7 9Zm3 2v7h2v-7h-2Zm4 0v7h2v-7h-2Z"></path>
+                </svg>
+              </button>
+            </div>
+          </td>` : ""}
           <td class="${row.isOriginal ? "label-original" : ""}">${escapeHtml(row.label)}</td>
           <td>${escapeHtml(row.text)}</td>
           <td>${row.byteSize}</td>
