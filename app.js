@@ -7,7 +7,6 @@ const STORAGE_KEYS = {
 const encoder = new TextEncoder();
 const MESH_METHOD_LABEL = "Mesh-compressor";
 const LZW_METHOD_LABEL = "LZW-сжатие";
-const LZW_ENCODER_METHOD_LABEL = "LZW-сжатие (вариант 2)";
 const DEFAULT_DICTIONARIES = [
   {
     name: "Cyr2Lat standard",
@@ -150,12 +149,10 @@ const state = {
     byteLimit: "",
     meshEnabled: false,
     lzwEnabled: false,
-    lzwEncoderEnabled: false,
   }),
 };
 state.settings.meshEnabled = state.settings.meshEnabled ?? false;
 state.settings.lzwEnabled = state.settings.lzwEnabled ?? false;
-state.settings.lzwEncoderEnabled = state.settings.lzwEncoderEnabled ?? false;
 
 const elements = {
   sourceInput: document.getElementById("source-input"),
@@ -168,7 +165,6 @@ const elements = {
   byteLimitInput: document.getElementById("byte-limit-input"),
   meshToggleButton: document.getElementById("mesh-toggle-button"),
   lzwToggleButton: document.getElementById("lzw-toggle-button"),
-  lzwEncoderToggleButton: document.getElementById("lzw-encoder-toggle-button"),
   sortIndicator: document.getElementById("sort-indicator"),
   exampleCount: document.getElementById("example-count"),
   resultsBody: document.getElementById("results-body"),
@@ -205,7 +201,6 @@ function bindEvents() {
   elements.byteLimitInput.addEventListener("input", handleByteLimitChange);
   elements.meshToggleButton.addEventListener("click", toggleMeshMethod);
   elements.lzwToggleButton.addEventListener("click", toggleLzwMethod);
-  elements.lzwEncoderToggleButton.addEventListener("click", toggleLzwEncoderMethod);
   elements.addDictionaryButton.addEventListener("click", addDictionary);
   elements.resetDictionariesButton.addEventListener("click", resetDictionaries);
 }
@@ -413,13 +408,6 @@ function toggleLzwMethod() {
   renderResults();
 }
 
-function toggleLzwEncoderMethod() {
-  state.settings.lzwEncoderEnabled = !state.settings.lzwEncoderEnabled;
-  persistSettings();
-  renderLzwEncoderMethod();
-  renderResults();
-}
-
 function toggleSortDirection() {
   state.settings.sortDirection = state.settings.sortDirection === "desc" ? "asc" : "desc";
   persistSettings();
@@ -431,7 +419,6 @@ function renderAll() {
   renderSortState();
   renderMeshMethod();
   renderLzwMethod();
-  renderLzwEncoderMethod();
   renderDictionaries();
   renderResults();
 }
@@ -454,13 +441,6 @@ function renderLzwMethod() {
   elements.lzwToggleButton.textContent = isEnabled ? "Включен" : "Выключен";
   elements.lzwToggleButton.classList.toggle("button--primary", isEnabled);
   elements.lzwToggleButton.classList.toggle("button--ghost", !isEnabled);
-}
-
-function renderLzwEncoderMethod() {
-  const isEnabled = state.settings.lzwEncoderEnabled;
-  elements.lzwEncoderToggleButton.textContent = isEnabled ? "Включен" : "Выключен";
-  elements.lzwEncoderToggleButton.classList.toggle("button--primary", isEnabled);
-  elements.lzwEncoderToggleButton.classList.toggle("button--ghost", !isEnabled);
 }
 
 function renderDictionaries() {
@@ -553,10 +533,6 @@ function renderResults() {
     const lzwRow = buildLzwResultRow(example.text, originalBytes, index + 1);
     if (lzwRow) {
       sectionRows.push(lzwRow);
-    }
-    const lzwEncoderRow = buildLzwEncoderResultRow(example.text, originalBytes, index + 1);
-    if (lzwEncoderRow) {
-      sectionRows.push(lzwEncoderRow);
     }
 
     sectionRows.forEach((row, rowIndex) => {
@@ -702,42 +678,6 @@ function buildLzwResultRow(sourceText, originalBytes, orderNumber) {
     return buildCompressedResultRow({
       orderNumber,
       label: LZW_METHOD_LABEL,
-      text: `Ошибка сжатия: ${error.message}`,
-      byteSize: 0,
-      originalBytes,
-    });
-  }
-}
-
-function buildLzwEncoderResultRow(sourceText, originalBytes, orderNumber) {
-  if (!state.settings.lzwEncoderEnabled) {
-    return null;
-  }
-
-  if (!window.lzwEncoderHelper) {
-    return buildCompressedResultRow({
-      orderNumber,
-      label: LZW_ENCODER_METHOD_LABEL,
-      text: "Хелпер lzw-encoder.js не загружен",
-      byteSize: 0,
-      originalBytes,
-    });
-  }
-
-  try {
-    const compressed = window.lzwEncoderHelper.compressText(sourceText);
-
-    return buildCompressedResultRow({
-      orderNumber,
-      label: LZW_ENCODER_METHOD_LABEL,
-      text: compressed.display,
-      byteSize: compressed.byteSize,
-      originalBytes,
-    });
-  } catch (error) {
-    return buildCompressedResultRow({
-      orderNumber,
-      label: LZW_ENCODER_METHOD_LABEL,
       text: `Ошибка сжатия: ${error.message}`,
       byteSize: 0,
       originalBytes,
